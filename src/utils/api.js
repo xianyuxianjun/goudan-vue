@@ -3,7 +3,7 @@ import Cookies from 'js-cookie'
 
 // 创建一个 axios 实例
 const api = axios.create({
-  baseURL: 'http://localhost:8081', // 你的API基础URL
+  baseURL: 'http://localhost:8080', // 你的API基础URL
   timeout: 1000, // 请求超时时间
   headers: { 'X-Custom-Header': 'foobar' }, // 自定义请求头
 })

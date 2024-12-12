@@ -351,6 +351,9 @@
     "watchTriggerable": true,
     "watchWithFilter": true,
     "whenever": true,
-    "api": true
+    "api": true,
+    "isSuccess": true,
+    "options": true,
+    "toAvatar": true
   }
 }
