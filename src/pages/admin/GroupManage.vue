@@ -1,10 +1,10 @@
 <script setup>
-import TableHead from "@/views/TableHead.vue";
-import {addProjectGroup, deleteProjectGroup, getProjectGroupList, updateProjectGroup} from "@/api/projectGroup.js";
-import {options} from "@/utils/ty.js";
+import { addProjectGroup, deleteProjectGroup, getProjectGroupList, updateProjectGroup } from "@/api/projectGroup.js";
+import { options, snackbar } from "@/utils/ty.js";
+import AddDialog from "@/views/AddDialog.vue";
 import DetectDialog from "@/views/DetectDialog.vue";
 import EditDiaLog from "@/views/EditDiaLog.vue";
-import AddDialog from "@/views/AddDialog.vue";
+import TableHead from "@/views/TableHead.vue";
 
 //表头
 const groupTableHeaders = ref([
@@ -27,15 +27,15 @@ const groupData = ref([])
 //展示的项目组数据
 const groupList = ref([])
 //编辑的项目组
-const editGroupValue = ref({
+const editGroup = ref({
+  id: '',
   name: '',
   description: '',
-  id: ''
 })
 
 //打开编辑对话框
 function editItem(item) {
-  editGroupValue.value = item
+  editGroup.value = { ...item }
 }
 
 //新增的项目组
@@ -67,7 +67,7 @@ function shanchu(item) {
 
 //修改项目组
 function edit() {
-  updateProjectGroup(editGroupValue.value).then(res => {
+  updateProjectGroup(editGroup.value).then(res => {
     isSuccess(res)
     getGroupList()
   })
@@ -112,26 +112,35 @@ onMounted(() => {
                 :page="options.page"
                 :options="options">
       <template #item.operation="{ item }">
-        <EditDiaLog @edit="edit" @click="editItem(item)">
-          <template #content>
-            <VCol
-              cols="12"
+        <div class="d-flex align-center">
+          <div class="me-2">
+            <EditDiaLog 
+              @edit="edit" 
+              @update="editItem(item)"
             >
-              <VTextField
-                label="项目名称"
-                v-model="editGroupValue.name"
-              />
-            </VCol>
-            <VCol
-              cols="12"
-            >
-              <VTextarea label="项目介绍" v-model="editGroupValue.description"/>
-            </VCol>
-          </template>
-        </EditDiaLog>
-
-        <DetectDialog @delete="shanchu(item)"/>
-
+              <VTooltip activator="parent" location="top">编辑信息</VTooltip>
+              <template #content>
+                <VCol cols="12">
+                  <VTextField
+                    label="项目名称"
+                    v-model="editGroup.name"
+                  />
+                </VCol>
+                <VCol cols="12">
+                  <VTextarea 
+                    label="项目介绍" 
+                    v-model="editGroup.description"
+                  />
+                </VCol>
+              </template>
+            </EditDiaLog>
+          </div>
+          <div class="me-2">
+            <DetectDialog @delete="shanchu(item)">
+              <VTooltip activator="parent" location="top">删除项目组</VTooltip>
+            </DetectDialog>
+          </div>
+        </div>
       </template>
       <template #bottom>
         <VPagination
@@ -142,6 +151,26 @@ onMounted(() => {
       </template>
     </VDataTable>
   </VCard>
+
+  <!-- 添加提示框组件 -->
+  <VSnackbar
+    v-model="snackbar.show"
+    :color="snackbar.color"
+    :timeout="snackbar.timeout"
+    location="top"
+  >
+    {{ snackbar.text }}
+    
+    <template #actions>
+      <VBtn
+        color="white"
+        variant="text"
+        @click="snackbar.show = false"
+      >
+        关闭
+      </VBtn>
+    </template>
+  </VSnackbar>
 </template>
 
 <style scoped lang="scss">

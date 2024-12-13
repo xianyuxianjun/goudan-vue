@@ -20,8 +20,14 @@ declare module 'vue-router/auto-routes' {
   export interface RouteNamedMap {
     'root': RouteRecordInfo<'root', '/', Record<never, never>, Record<never, never>>,
     '$error': RouteRecordInfo<'$error', '/:error(.*)', { error: ParamValue<true> }, { error: ParamValue<false> }>,
+    'admin-attendance-manage': RouteRecordInfo<'admin-attendance-manage', '/admin/AttendanceManage', Record<never, never>, Record<never, never>>,
+    'admin-duty-manage': RouteRecordInfo<'admin-duty-manage', '/admin/DutyManage', Record<never, never>, Record<never, never>>,
     'admin-group-manage': RouteRecordInfo<'admin-group-manage', '/admin/GroupManage', Record<never, never>, Record<never, never>>,
+    'admin-leave-manage': RouteRecordInfo<'admin-leave-manage', '/admin/LeaveManage', Record<never, never>, Record<never, never>>,
     'admin-user-manage': RouteRecordInfo<'admin-user-manage', '/admin/UserManage', Record<never, never>, Record<never, never>>,
     'login': RouteRecordInfo<'login', '/login', Record<never, never>, Record<never, never>>,
+    'user-attendance-check': RouteRecordInfo<'user-attendance-check', '/user/AttendanceCheck', Record<never, never>, Record<never, never>>,
+    'user-attendance-record': RouteRecordInfo<'user-attendance-record', '/user/AttendanceRecord', Record<never, never>, Record<never, never>>,
+    'user-leave-apply': RouteRecordInfo<'user-leave-apply', '/user/LeaveApply', Record<never, never>, Record<never, never>>,
   }
 }

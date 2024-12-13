@@ -1,13 +1,19 @@
 <script setup>
-import {defineEmits} from "vue";
+import { defineEmits, watch } from "vue";
 
-const emit = defineEmits(['edit']);
+const emit = defineEmits(['edit', 'update']);
 const editDialogVisible = ref(false)
 
 function edit(){
   emit('edit')
   editDialogVisible.value = false
 }
+
+watch(editDialogVisible, (newVal) => {
+  if (newVal) {
+    emit('update')
+  }
+})
 </script>
 
 <template>
@@ -15,14 +21,19 @@ function edit(){
     v-model="editDialogVisible"
     max-width="600"
   >
-    <template #activator>
-                <IconBtn
-                  size="small"
-                  @click="editDialogVisible=true"
-                >
-                  <VIcon icon="ri-pencil-line" />
-                </IconBtn>
+    <template #activator="{ props }">
+      <VBtn
+        v-bind="props"
+        icon
+        size="small"
+        color="primary"
+        variant="text"
+      >
+        <VIcon size="20" icon="ri-edit-line"/>
+        <slot></slot>
+      </VBtn>
     </template>
+
     <!-- Dialog Content -->
     <VCard title="编辑">
       <DialogCloseBtn

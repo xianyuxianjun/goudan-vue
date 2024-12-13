@@ -1,5 +1,5 @@
 <script setup>
-import {defineEmits} from "vue";
+import { defineEmits } from "vue";
 
 const emit = defineEmits(['delete']);
 const deleteDialogVisible = ref(false)
@@ -16,14 +16,19 @@ function handleDelete() {
     persistent
     class="v-dialog-sm"
   >
-    <template #activator>
-      <IconBtn
+    <template #activator="{ props }">
+      <VBtn
+        v-bind="props"
+        icon
         size="small"
-        @click="deleteDialogVisible = true"
+        color="error"
+        variant="text"
       >
-        <VIcon icon="ri-delete-bin-line" />
-      </IconBtn>
+        <VIcon size="20" icon="ri-delete-bin-line"/>
+        <slot></slot>
+      </VBtn>
     </template>
+
     <!-- Dialog Content -->
     <VCard title="删除">
       <DialogCloseBtn

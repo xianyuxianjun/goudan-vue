@@ -26,15 +26,33 @@ export function toAvatar(user) {
     }
 }
 
-export function isSuccess(res){
-    if (res.code === 1){
-        if(res.msg){
-            alert(res.msg)
-        }
-        console.log(res)
-    }else {
-        alert(res.msg)
+// 创建一个响应式变量来控制提示框
+export const snackbar = ref({
+  show: false,
+  text: '',
+  color: '',
+  timeout: 3000,
+})
+
+export function isSuccess(res) {
+  if (res.code === 1) {
+    if(res.msg) {
+      snackbar.value = {
+        show: true,
+        text: res.msg,
+        color: 'success',
+        timeout: 3000,
+      }
     }
+    console.log(res)
+  } else {
+    snackbar.value = {
+      show: true,
+      text: res.msg,
+      color: 'error',
+      timeout: 3000,
+    }
+  }
 }
 //分页
 export const options = ref({page: 1, itemsPerPage: 10, sortBy: [''], sortDesc: [false]})

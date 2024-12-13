@@ -27,7 +27,7 @@ function handleSearch() {
         <slot name="one"></slot>
       </VCol>
       <VCol cols="12" md="2">
-        <slot name="tow"></slot>
+        <slot name="two"></slot>
       </VCol>
       <VCol cols="12" md="2">
         <slot name="three"></slot>

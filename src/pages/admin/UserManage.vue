@@ -1,12 +1,13 @@
 <script setup>
-import avatar from "@/assets/images/avatars/avatar-1.png"
-import TableHead from "@/views/TableHead.vue";
-import {getUserList, detectUser, addUser, updateUser} from "@/api/user.js";
-import {onMounted} from "vue"
-import {getProjectKVList} from "@/api/projectGroup.js";
+import { getProjectKVList } from "@/api/projectGroup.js";
+import { addUser, detectUser, getUserList, updateUser } from "@/api/user.js";
+import avatar from "@/assets/images/avatars/avatar-1.png";
+import { snackbar } from "@/utils/ty.js";
 import AddDialog from "@/views/AddDialog.vue";
-import EditDiaLog from "@/views/EditDiaLog.vue";
 import DetectDialog from "@/views/DetectDialog.vue";
+import EditDiaLog from "@/views/EditDiaLog.vue";
+import TableHead from "@/views/TableHead.vue";
+import { onMounted } from "vue";
 
 
 //搜索框的值
@@ -33,7 +34,7 @@ const userTableHeader = ref([
 ])
 //后端获取的数据
 const userData = ref([])
-//表格站式的数据
+//表格站式的数
 const userList = ref([{
   userId: 'S202209512245',
   name: '陈咸鱼',
@@ -49,7 +50,7 @@ const userList = ref([{
 //后端获取的项目组列表
 const groupList = ref([])
 //编辑的用户
-const editUser = ref([{
+const editUser = ref({
   userId: '',
   name: '',
   sex: '',
@@ -60,11 +61,11 @@ const editUser = ref([{
   post: '',
   status: '',
   groupName: '',
-}])
+})
 
 //打开编辑对话框
 function editItem(item) {
-  editUser.value = item
+  editUser.value = { ...item }
 }
 
 //新增的用户
@@ -251,7 +252,7 @@ onMounted(() => {
             </VAvatar>
 
             <div class="d-flex flex-column">
-              {{ item.name }}
+              <span class="user-name">{{ item.name }}</span>
               <span class="text-sm text-medium-emphasis">{{ item.post }}</span>
             </div>
           </div>
@@ -260,83 +261,105 @@ onMounted(() => {
           <VChip color="success">{{ item.status }}</VChip>
         </template>
         <template #item.operation="{ item }">
-          <EditDiaLog @edit="xiugai" @click="editItem(item)">
-            <template #content>
-              <VCol
-                cols="12"
-                sm="6"
-                md="4"
+          <div class="d-flex align-center">
+            <div class="me-2">
+              <EditDiaLog 
+                @edit="xiugai" 
+                @update="editItem(item)" 
               >
-                <VTextField
-                  label="名称"
-                  v-model="editUser.name"
-                />
-              </VCol>
-              <VCol
-                cols="12"
-                sm="6"
-                md="4"
-              >
-                <VTextField
-                  v-model="editUser.age"
-                  label="年龄"
-                />
-              </VCol>
-              <VCol
-                cols="12"
-                sm="6"
-                md="4"
-              >
-                <VSelect label="性别" :items="[{title:'男',value:'男'},{title:'女',value:'女'}]"/>
-              </VCol>
-              <VCol cols="12">
-                <VTextField
-                  v-model="editUser.email"
-                  label="Email"
-                />
-              </VCol>
+                <VTooltip activator="parent" location="top">编辑信息</VTooltip>
+                <template #content>
+                  <VCol
+                    cols="12"
+                    sm="6"
+                    md="4"
+                  >
+                    <VTextField
+                      label="名称"
+                      v-model="editUser.name"
+                    />
+                  </VCol>
+                  <VCol
+                    cols="12"
+                    sm="6"
+                    md="4"
+                  >
+                    <VTextField
+                      v-model="editUser.age"
+                      label="年龄"
+                    />
+                  </VCol>
+                  <VCol
+                    cols="12"
+                    sm="6"
+                    md="4"
+                  >
+                    <VSelect label="性别" :items="[{title:'男',value:'男'},{title:'女',value:'女'}]"/>
+                  </VCol>
+                  <VCol cols="12">
+                    <VTextField
+                      v-model="editUser.email"
+                      label="Email"
+                    />
+                  </VCol>
 
-              <VCol
-                cols="12"
-                sm="6"
-              >
-                <VTextField
-                  v-model="editUser.className"
-                  label="班级"
-                />
-              </VCol>
-              <VCol
-                cols="12"
-                sm="6"
-              >
-                <VTextField
-                  v-model="editUser.major"
-                  label="专业"
-                />
-              </VCol>
-              <VCol
-                cols="12"
-                sm="6"
-              >
-                <VSelect label="职位" v-model="editUser.post"
-                         :items="[{title:'组员',value:'组员'},{title:'老师',value:'老师'},{title:'主管',value:'主管'},{title:'组长',value:'组长'}]"/>
-              </VCol>
-              <VCol
-                cols="12"
-                sm="6"
-              >
-                <VSelect label="状态" v-model="editUser.status"
-                         :items="[{title:'在岗',value:'在岗'},{title:'离岗',value:'离岗'}]"/>
-              </VCol>
-              <VCol
-                cols="12"
-                sm="6"
-              >
-                <VSelect label="项目组" v-model="editUser.groupName" :items="groupList"/>
-              </VCol>
-            </template>
-          </EditDiaLog>
-          <DetectDialog @delete="shanchu(item)"/>
+                  <VCol
+                    cols="12"
+                    sm="6"
+                  >
+                    <VTextField
+                      v-model="editUser.className"
+                      label="班级"
+                    />
+                  </VCol>
+                  <VCol
+                    cols="12"
+                    sm="6"
+                  >
+                    <VTextField
+                      v-model="editUser.major"
+                      label="专业"
+                    />
+                  </VCol>
+                  <VCol
+                    cols="12"
+                    sm="6"
+                  >
+                    <VSelect label="职位" v-model="editUser.post"
+                             :items="[{title:'组员',value:'组员'},{title:'老师',value:'老师'},{title:'主管',value:'主管'},{title:'组长',value:'组长'}]"/>
+                  </VCol>
+                  <VCol
+                    cols="12"
+                    sm="6"
+                  >
+                    <VSelect label="状态" v-model="editUser.status"
+                             :items="[{title:'在岗',value:'在岗'},{title:'离岗',value:'离岗'}]"/>
+                  </VCol>
+                  <VCol
+                    cols="12"
+                    sm="6"
+                  >
+                    <VSelect label="项目组" v-model="editUser.groupName" :items="groupList"/>
+                  </VCol>
+                </template>
+              </EditDiaLog>
+            </div>
+            <div class="me-2">
+              <DetectDialog @delete="shanchu(item)">
+                <VTooltip activator="parent" location="top">删除用户</VTooltip>
+              </DetectDialog>
+            </div>
+            <VBtn
+              icon
+              size="small"
+              color="error"
+              variant="text"
+              @click="disableUser(item)"
+            >
+              <VIcon size="20" icon="ri-forbid-line"/>
+              <VTooltip activator="parent" location="top">禁用账号</VTooltip>
+            </VBtn>
+          </div>
         </template>
         <template #bottom>
           <VPagination
@@ -348,8 +371,29 @@ onMounted(() => {
       </VDataTable>
     </VCardText>
   </VCard>
+
+  <VSnackbar
+    v-model="snackbar.show"
+    :color="snackbar.color"
+    :timeout="snackbar.timeout"
+    location="top"
+  >
+    {{ snackbar.text }}
+    
+    <template #actions>
+      <VBtn
+        color="white"
+        variant="text"
+        @click="snackbar.show = false"
+      >
+        关闭
+      </VBtn>
+    </template>
+  </VSnackbar>
 </template>
 
 <style scoped lang="scss">
-
+.user-name {
+  white-space: nowrap;
+}
 </style>
