@@ -1,90 +1,254 @@
 <script setup>
 import { useGenerateImageVariant } from '@/@core/composable/useGenerateImageVariant'
+import { login } from "@/api/login"
+import { useUserStore } from '@/stores/user'
 import authV1LoginMaskDark from '@images/pages/auth-v1-login-mask-dark.png'
 import authV1LoginMaskLight from '@images/pages/auth-v1-login-mask-light.png'
 import { VNodeRenderer } from '@layouts/components/VNodeRenderer'
 import { themeConfig } from '@themeConfig'
+import Cookies from "js-cookie"
 import { useRouter } from 'vue-router'
-import { login } from "@/api/login.js";
-import Cookies from "js-cookie";
 
 definePage({ meta: { layout: 'blank' } })
 
 const router = useRouter()
+const userStore = useUserStore()
+const formRef = ref(null)
+const loading = ref(false)
+const isPasswordVisible = ref(false)
+
+const snackbar = ref({
+  show: false,
+  text: '',
+  color: '',
+})
 
 const loginForm = ref({
-  username: '',
+  email: '',
   password: '',
   remember: false,
 })
 
-//登录
-function clickLogin(){
-  login(loginForm.value).then(res =>{
-    if (res.code){
-      Cookies.set("token",res.data.tokenValue,{expires: 30})
+// 表单验证规则
+const rules = {
+  email: [
+    v => !!v || '请输入邮箱',
+    v => /.+@.+\..+/.test(v) || '请输入有效的邮箱地址',
+  ],
+  password: [
+    v => !!v || '请输入密码',
+    v => v.length >= 6 || '密码长度至少6位',
+  ],
+}
+
+// 登录
+async function handleLogin() {
+  console.log('handleLogin called')
+  
+  const { valid } = await formRef.value.validate()
+  if (!valid) return
+
+  loading.value = true
+  try {
+    const res = await login(loginForm.value)
+
+    console.log('登录响应:', res)
+
+    if (res.code === 1) {
+      // 设置token
+      Cookies.set("token", res.data.tokenValue, { expires: 30 })
+      
+      // 设置用户角色（根据后端返回的数据）
+      userStore.setRole(res.data.role || 'user')
+      
+      // 显示成功提示
+      snackbar.value = {
+        show: true,
+        text: '登录成功',
+        color: 'success',
+      }
+      
       router.push("/")
-    }else {
-      alert(res.message)
+    } else {
+      snackbar.value = {
+        show: true,
+        text: res.message || '登录失败',
+        color: 'error',
+      }
     }
-  })
+  } catch (error) {
+    console.error('登录失败:', error)
+    snackbar.value = {
+      show: true,
+      text: error.message || '登录失败，请重试',
+      color: 'error',
+    }
+  } finally {
+    loading.value = false
+  }
 }
 
 const authV1ThemeLoginMask = useGenerateImageVariant(authV1LoginMaskLight, authV1LoginMaskDark)
-const isPasswordVisible = ref(false)
+
+// 切换到注册页面
+const goToRegister = () => {
+  router.push('/register')
+}
 </script>
 
 <template>
   <div class="auth-wrapper d-flex align-center justify-center pa-4">
     <VCard
-      class="auth-card pa-1 pa-sm-7"
+      class="auth-card pa-4 pt-7"
       max-width="448"
-      title=""
+      rounded="lg"
     >
-      <VCardItem class="justify-center pb-6">
-        <VCardTitle>
-          <div class="app-logo">
+      <VCardItem class="justify-center">
+        <template #prepend>
+          <div class="d-flex">
             <VNodeRenderer :nodes="themeConfig.app.logo" />
-            <h1 class="app-logo-title">
-              登录
-            </h1>
           </div>
+        </template>
+        
+        <VCardTitle class="font-weight-semibold text-2xl text-center">
+          欢迎登录
         </VCardTitle>
       </VCardItem>
-      <VCardText>
-        <VRow class="mb-4">
-          <VCol cols="12" />
-          <VCol cols="12">
-            <VTextField
-              v-model="loginForm.username"
-              label="用户名"
-            />
-          </VCol>
-          <VCol cols="12">
-            <VTextField
-              v-model="loginForm.password"
-              label="密码"
-              type="password"
-            />
-          </VCol>
-        </VRow>
+
+      <VCardText class="pt-2 pb-2 text-center text-disabled">
+        请使用您的邮箱和密码登录系统
       </VCardText>
-      <VCardText class="d-flex justify-end flex-wrap gap-4">
-        <VBtn
-          color="success"
-          @click="clickLogin"
+
+      <VCardText>
+        <VForm
+          ref="formRef"
+          @submit.prevent="handleLogin"
         >
-          登录
-        </VBtn>
+          <VRow>
+            <VCol cols="12">
+              <VTextField
+                v-model="loginForm.email"
+                :rules="rules.email"
+                label="邮箱"
+                type="email"
+                placeholder="请输入邮箱"
+                prepend-inner-icon="ri-mail-line"
+                density="comfortable"
+                variant="outlined"
+                required
+              />
+            </VCol>
+
+            <VCol cols="12">
+              <VTextField
+                v-model="loginForm.password"
+                :rules="rules.password"
+                :type="isPasswordVisible ? 'text' : 'password'"
+                label="密码"
+                placeholder="请输入密码"
+                prepend-inner-icon="ri-lock-line"
+                :append-inner-icon="isPasswordVisible ? 'ri-eye-line' : 'ri-eye-off-line'"
+                density="comfortable"
+                variant="outlined"
+                required
+                @click:append-inner="isPasswordVisible = !isPasswordVisible"
+              />
+            </VCol>
+
+            <VCol
+              cols="12"
+              class="d-flex align-center flex-wrap justify-space-between gap-2"
+            >
+              <VCheckbox
+                v-model="loginForm.remember"
+                label="记住我"
+                density="comfortable"
+              />
+              
+              <RouterLink
+                class="text-primary ms-2 mb-1"
+                href="javascript:void(0)"
+              >
+                忘记密码？
+              </RouterLink>
+            </VCol>
+
+            <VCol cols="12">
+              <VBtn
+                block
+                type="submit"
+                size="large"
+                color="primary"
+                :loading="loading"
+                :disabled="loading"
+              >
+                登 录
+              </VBtn>
+            </VCol>
+          </VRow>
+        </VForm>
+
+        <div class="mt-2 d-flex align-center justify-center text-center">
+          <span class="text-disabled">还没有账号？</span>
+          <RouterLink
+            to="/register"
+            class="text-primary ms-2"
+          >
+            立即注册
+          </RouterLink>
+        </div>
       </VCardText>
     </VCard>
+
+    <!-- 背景图 -->
     <VImg
       :src="authV1ThemeLoginMask"
-      class="d-none d-md-block auth-footer-mask flip-in-rtl"
+      class="auth-footer-mask d-none d-md-block"
     />
   </div>
+
+  <!-- 提示信息 -->
+  <VSnackbar
+    v-model="snackbar.show"
+    :color="snackbar.color"
+    location="top"
+  >
+    {{ snackbar.text }}
+    
+    <template #actions>
+      <VBtn
+        color="white"
+        variant="text"
+        @click="snackbar.show = false"
+      >
+        关闭
+      </VBtn>
+    </template>
+  </VSnackbar>
 </template>
 
 <style lang="scss">
 @use "@core/scss/template/pages/page-auth.scss";
+
+.auth-wrapper {
+  min-block-size: 100vh;
+
+  .auth-card {
+    .v-card-item {
+      .v-card-title {
+        font-size: 1.75rem;
+      }
+    }
+  }
+}
+
+// 添加链接样式
+.router-link {
+  font-weight: 500;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
 </style>

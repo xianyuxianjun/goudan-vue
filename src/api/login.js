@@ -1,5 +1,5 @@
-import api from "@/utils/api.js"
+import api from "@/utils/api"
 
 export  function login(user){
-    return api.post("/login",user)
+  return api.post("/login", user)
 }

@@ -1,7 +1,9 @@
 <script setup>
 import navItems from '@/navigation/vertical'
+import { useUserStore } from '@/stores/user'
 import { useConfigStore } from '@core/stores/config'
 import { themeConfig } from '@themeConfig'
+import { computed, ref, watch } from 'vue'
 
 // Components
 import Footer from '@/layouts/components/Footer.vue'
@@ -11,6 +13,10 @@ import NavBarI18n from '@core/components/I18n.vue'
 
 // @layouts plugin
 import { VerticalNavLayout } from '@layouts'
+
+// 初始化 stores
+const configStore = useConfigStore()
+const userStore = useUserStore()
 
 // SECTION: Loading Indicator
 const isFallbackStateActive = ref(false)
@@ -26,9 +32,6 @@ watch([
     refLoadingIndicator.value.resolveHandle()
 }, { immediate: true })
 
-// !SECTION
-const configStore = useConfigStore()
-
 // ℹ️ Provide animation name for vertical nav collapse icon.
 const verticalNavHeaderActionAnimationName = ref(null)
 
@@ -41,10 +44,23 @@ watch([
   else
     verticalNavHeaderActionAnimationName.value = val[0] ? 'rotate-180' : 'rotate-back-180'
 }, { immediate: true })
+
+// 根据用户角色过滤菜单
+const filteredNavItems = computed(() => {
+  const userRole = userStore.role
+
+  console.log('Current user role:', userRole)
+  
+  const filtered = navItems.filter(item => item.role.includes(userRole))
+
+  console.log('Filtered menu items:', filtered)
+  
+  return filtered
+})
 </script>
 
 <template>
-  <VerticalNavLayout :nav-items="navItems">
+  <VerticalNavLayout :nav-items="filteredNavItems">
     <!-- 👉 navbar -->
     <template #navbar="{ toggleVerticalOverlayNavActive }">
       <div class="d-flex h-100 align-center">

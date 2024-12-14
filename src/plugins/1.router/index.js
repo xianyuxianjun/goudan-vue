@@ -1,6 +1,6 @@
+import Cookies from "js-cookie"
 import { setupLayouts } from 'virtual:generated-layouts'
 import { createRouter, createWebHistory } from 'vue-router/auto'
-import Cookies from "js-cookie";
 
 function recursiveLayouts(route) {
   if (route.children) {
@@ -25,30 +25,14 @@ const router = createRouter({
     ...[...pages].map(route => recursiveLayouts(route)),
   ],
 })
+
 function isAuthenticated() {
-    // 从 localStorage 中获取 token
-    const token = Cookies.get("token")
+  // 从 localStorage 中获取 token
+  const token = Cookies.get("token")
 
-    // 如果 token 存在且不为空，则认为用户已认证
-    return !!token;
+  // 如果 token 存在且不为空，则认为用户已认证
+  return !!token
 }
-// 添加全局前置守卫
-// router.beforeEach((to, from, next) => {
-//     // 如果目标路由是 /login 或 /register，则直接放行
-//     if (to.path === '/login' || to.path === '/register') {
-//         next();
-//     } else {
-//         // 检查用户是否已通过认证
-//         if (isAuthenticated()) {
-//             // 用户已认证，允许访问
-//             next();
-//         } else {
-//             // 用户未认证，重定向到 /login
-//             next({ path: '/login' });
-//         }
-//     }
-// })
-
 export { router }
 export default function (app) {
   app.use(router)
