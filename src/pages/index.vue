@@ -1,203 +1,219 @@
 <script setup>
-import { onMounted, ref } from 'vue';
+import { getCheckInRanking, getDashboardStats, getRecentLeaves } from '@/api/dashboard';
+import { onMounted, ref, watch } from 'vue';
 
-// 项目统计数据
-const projectStats = ref({
-  totalProjects: 8,
-  activeProjects: 6,
-  completedProjects: 2,
-  totalMembers: 45,
-})
-
-// 考勤统计
-const attendanceStats = ref({
-  present: 42,
-  late: 2,
-  absent: 1,
-  onLeave: 3,
+// 统计数据
+const stats = ref({
+  projects: {
+    total: 0,
+    active: 0,
+    completed: 0,
+    members: 0,
+  },
+  attendance: {
+    present: 0,
+    late: 0,
+    absent: 0,
+    onLeave: 0,
+  },
 })
 
 // 活动标签页
 const activeTab = ref('today')
+const todayRanking = ref([])
+const monthlyRanking = ref([])
+const recentLeaves = ref([])
 
-// 今日签到排名
-const todayRanking = ref([
-  {
-    name: '张三',
-    department: '研发一组',
-    checkInTime: '08:30:00',
-    avatar: null,
-    streak: 5, // 连续签到天数
-  },
-  {
-    name: '李四',
-    department: '研发二组',
-    checkInTime: '08:35:00',
-    avatar: null,
-    streak: 3,
-  },
-  {
-    name: '王五',
-    department: '研发一组',
-    checkInTime: '08:40:00',
-    avatar: null,
-  },
-  {
-    name: '赵六',
-    department: '研发三组',
-    checkInTime: '08:42:00',
-    avatar: null,
-  },
-  {
-    name: '孙七',
-    department: '研发二组',
-    checkInTime: '08:45:00',
-    avatar: null,
-  },
-])
-
-// 本月勤勉排名
-const monthlyRanking = ref([
-  {
-    name: '张三',
-    department: '研发一组',
-    checkInDays: 22,
-    onTimeRate: '100%',
-    avatar: null,
-  },
-  {
-    name: '李四',
-    department: '研发二组',
-    checkInDays: 21,
-    onTimeRate: '95%',
-    avatar: null,
-  },
-  {
-    name: '王五',
-    department: '研发一组',
-    checkInDays: 20,
-    onTimeRate: '98%',
-    avatar: null,
-  },
-  {
-    name: '赵六',
-    department: '研发三组',
-    checkInDays: 20,
-    onTimeRate: '90%',
-    avatar: null,
-  },
-  {
-    name: '孙七',
-    department: '研发二组',
-    checkInDays: 19,
-    onTimeRate: '95%',
-    avatar: null,
-  },
-])
-
-// 最近请假记录
-const recentLeaves = ref([
-  {
-    name: '张三',
-    type: '事假',
-    startDate: '2024-03-20',
-    endDate: '2024-03-21',
-    status: '待审批',
-  },
-  {
-    name: '李四',
-    type: '病假',
-    startDate: '2024-03-22',
-    endDate: '2024-03-23',
-    status: '已通过',
-  },
-])
-
-// 获取任务优先级样式
-const getPriorityStyle = (priority) => {
-  const styles = {
-    high: { color: 'error', icon: 'mdi-flag' },
-    medium: { color: 'warning', icon: 'mdi-flag' },
-    low: { color: 'success', icon: 'mdi-flag' },
+// 获取统计数据
+const fetchStats = async () => {
+  try {
+    const res = await getDashboardStats()
+    if (res.code === 1) {
+      stats.value = res.data
+    }
+  } catch (error) {
+    console.error('获取统计数据失败:', error)
   }
-  return styles[priority] || styles.medium
 }
 
+// 获取排行榜数据
+const fetchRanking = async () => {
+  try {
+    const res = await getCheckInRanking(activeTab.value)
+    if (res.code === 1) {
+      if (activeTab.value === 'today') {
+        todayRanking.value = res.data
+      } else {
+        monthlyRanking.value = res.data
+      }
+    }
+  } catch (error) {
+    console.error('获取排行榜数据失败:', error)
+  }
+}
+
+// 获取请假记录
+const fetchRecentLeaves = async () => {
+  try {
+    const res = await getRecentLeaves()
+    if (res.code === 1) {
+      recentLeaves.value = res.data
+    }
+  } catch (error) {
+    console.error('获取请假记录失败:', error)
+  }
+}
+
+// 监听标签页变化
+watch(activeTab, () => {
+  fetchRanking()
+})
+
+// 页面加载时获取数据
 onMounted(() => {
-  // 这里可以添加实际的API调用来获取数据
+  fetchStats()
+  fetchRanking()
+  fetchRecentLeaves()
 })
 </script>
 
 <template>
-  <VContainer fluid class="dashboard">
+  <VContainer
+    fluid
+    class="dashboard"
+  >
     <!-- 统计卡片行 -->
     <VRow>
       <!-- 项目统计 -->
-      <VCol cols="12" sm="6" md="3">
-        <VCard class="stat-card" elevation="2">
+      <VCol
+        cols="12"
+        sm="6"
+        md="3"
+      >
+        <VCard
+          class="stat-card"
+          elevation="2"
+        >
           <VCardItem>
-            <VCardTitle class="text-primary">总项目数</VCardTitle>
+            <VCardTitle class="text-primary">
+              总项目数
+            </VCardTitle>
             <template #append>
-              <VIcon icon="mdi-folder-multiple" size="32" color="primary"/>
+              <VIcon
+                icon="ri-folder-multiple-line"
+                size="32"
+                color="primary"
+              />
             </template>
           </VCardItem>
           <VCardText>
-            <div class="text-h4">{{ projectStats.totalProjects }}</div>
+            <div class="text-h4">
+              {{ stats.projects.total }}
+            </div>
             <div class="d-flex align-center justify-space-between mt-2">
-              <span class="text-caption">进行中: {{ projectStats.activeProjects }}</span>
-              <span class="text-caption">已完成: {{ projectStats.completedProjects }}</span>
+              <span class="text-caption">进行中: {{ stats.projects.active }}</span>
+              <span class="text-caption">已完成: {{ stats.projects.completed }}</span>
             </div>
           </VCardText>
         </VCard>
       </VCol>
 
       <!-- 成员统计 -->
-      <VCol cols="12" sm="6" md="3">
-        <VCard class="stat-card" elevation="2">
+      <VCol
+        cols="12"
+        sm="6"
+        md="3"
+      >
+        <VCard
+          class="stat-card"
+          elevation="2"
+        >
           <VCardItem>
-            <VCardTitle class="text-success">总成员数</VCardTitle>
+            <VCardTitle class="text-success">
+              总成员数
+            </VCardTitle>
             <template #append>
-              <VIcon icon="mdi-account-group" size="32" color="success"/>
+              <VIcon
+                icon="mdi-account-group"
+                size="32"
+                color="success"
+              />
             </template>
           </VCardItem>
           <VCardText>
-            <div class="text-h4">{{ projectStats.totalMembers }}</div>
-            <div class="text-caption mt-2">活跃成员数</div>
+            <div class="text-h4">
+              {{ stats.projects.members }}
+            </div>
+            <div class="text-caption mt-2">
+              活跃成员数
+            </div>
           </VCardText>
         </VCard>
       </VCol>
 
       <!-- 考勤统计 -->
-      <VCol cols="12" sm="6" md="3">
-        <VCard class="stat-card" elevation="2">
+      <VCol
+        cols="12"
+        sm="6"
+        md="3"
+      >
+        <VCard
+          class="stat-card"
+          elevation="2"
+        >
           <VCardItem>
-            <VCardTitle class="text-info">今日出勤</VCardTitle>
+            <VCardTitle class="text-info">
+              今日出勤
+            </VCardTitle>
             <template #append>
-              <VIcon icon="mdi-calendar-check" size="32" color="info"/>
+              <VIcon
+                icon="mdi-calendar-check"
+                size="32"
+                color="info"
+              />
             </template>
           </VCardItem>
           <VCardText>
-            <div class="text-h4">{{ attendanceStats.present }}</div>
+            <div class="text-h4">
+              {{ stats.attendance.present }}
+            </div>
             <div class="d-flex align-center justify-space-between mt-2">
-              <span class="text-caption text-warning">迟到: {{ attendanceStats.late }}</span>
-              <span class="text-caption text-error">缺勤: {{ attendanceStats.absent }}</span>
+              <span class="text-caption text-warning">迟到: {{ stats.attendance.late }}</span>
+              <span class="text-caption text-error">缺勤: {{ stats.attendance.absent }}</span>
             </div>
           </VCardText>
         </VCard>
       </VCol>
 
       <!-- 请假统计 -->
-      <VCol cols="12" sm="6" md="3">
-        <VCard class="stat-card" elevation="2">
+      <VCol
+        cols="12"
+        sm="6"
+        md="3"
+      >
+        <VCard
+          class="stat-card"
+          elevation="2"
+        >
           <VCardItem>
-            <VCardTitle class="text-warning">请假人数</VCardTitle>
+            <VCardTitle class="text-warning">
+              请假人数
+            </VCardTitle>
             <template #append>
-              <VIcon icon="mdi-account-clock" size="32" color="warning"/>
+              <VIcon
+                icon="mdi-account-clock"
+                size="32"
+                color="warning"
+              />
             </template>
           </VCardItem>
           <VCardText>
-            <div class="text-h4">{{ attendanceStats.onLeave }}</div>
-            <div class="text-caption mt-2">当前请假人数</div>
+            <div class="text-h4">
+              {{ stats.attendance.onLeave }}
+            </div>
+            <div class="text-caption mt-2">
+              当前请假人数
+            </div>
           </VCardText>
         </VCard>
       </VCol>
@@ -206,10 +222,18 @@ onMounted(() => {
     <!-- 签到排行榜和请假记录 -->
     <VRow class="mt-6">
       <!-- 签到排行榜 -->
-      <VCol cols="12" md="8">
+      <VCol
+        cols="12"
+        md="8"
+      >
         <VCard elevation="2">
           <VCardTitle class="px-4 pt-3 pb-2">
-            <VIcon icon="mdi-trophy" color="warning" size="28" class="me-2"/>
+            <VIcon
+              icon="mdi-trophy"
+              color="warning"
+              size="28"
+              class="me-2"
+            />
             签到排行榜
           </VCardTitle>
 
@@ -219,17 +243,29 @@ onMounted(() => {
             grow
             class="px-4"
           >
-            <VTab value="today" class="py-3">
-              <VIcon icon="mdi-clock-fast" class="me-2"/>
+            <VTab
+              value="today"
+              class="py-3"
+            >
+              <VIcon
+                icon="mdi-clock-fast"
+                class="me-2"
+              />
               今日签到英雄榜
             </VTab>
-            <VTab value="monthly" class="py-3">
-              <VIcon icon="mdi-calendar-check" class="me-2"/>
+            <VTab
+              value="monthly"
+              class="py-3"
+            >
+              <VIcon
+                icon="mdi-calendar-check"
+                class="me-2"
+              />
               本月勤勉之星
             </VTab>
           </VTabs>
 
-          <VDivider/>
+          <VDivider />
 
           <VCardText class="pa-4">
             <VWindow v-model="activeTab">
@@ -242,7 +278,10 @@ onMounted(() => {
                     class="ranking-item"
                     :class="`rank-${index + 1}`"
                   >
-                    <div class="rank-medal" :class="`rank-${index + 1}`">
+                    <div
+                      class="rank-medal"
+                      :class="`rank-${index + 1}`"
+                    >
                       <VIcon
                         v-if="index < 3"
                         :icon="index === 0 ? 'mdi-crown' : 'mdi-medal'"
@@ -252,9 +291,19 @@ onMounted(() => {
                     </div>
 
                     <div class="d-flex align-center flex-grow-1">
-                      <VAvatar size="48" class="me-3 ranking-avatar" :class="`rank-${index + 1}`">
-                        <VImg v-if="item.avatar" :src="item.avatar"/>
-                        <span v-else class="text-h6">{{ item.name.charAt(0) }}</span>
+                      <VAvatar
+                        size="48"
+                        class="me-3 ranking-avatar"
+                        :class="`rank-${index + 1}`"
+                      >
+                        <VImg
+                          v-if="item.avatar"
+                          :src="item.avatar"
+                        />
+                        <span
+                          v-else
+                          class="text-h6"
+                        >{{ item.name.charAt(0) }}</span>
                       </VAvatar>
                       
                       <div class="flex-grow-1">
@@ -272,14 +321,21 @@ onMounted(() => {
                         </div>
                         <div class="d-flex align-center text-caption text-medium-emphasis">
                           <span>{{ item.department }}</span>
-                          <VDivider vertical class="mx-2" />
+                          <VDivider
+                            vertical
+                            class="mx-2"
+                          />
                           <span>连续签到 {{ item.streak }} 天</span>
                         </div>
                       </div>
 
                       <div class="text-right">
-                        <div class="text-h6 text-primary">{{ item.checkInTime }}</div>
-                        <div class="text-caption text-medium-emphasis">签到时间</div>
+                        <div class="text-h6 text-primary">
+                          {{ item.checkInTime }}
+                        </div>
+                        <div class="text-caption text-medium-emphasis">
+                          签到时间
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -295,7 +351,10 @@ onMounted(() => {
                     class="ranking-item"
                     :class="`rank-${index + 1}`"
                   >
-                    <div class="rank-medal" :class="`rank-${index + 1}`">
+                    <div
+                      class="rank-medal"
+                      :class="`rank-${index + 1}`"
+                    >
                       <VIcon
                         v-if="index < 3"
                         :icon="index === 0 ? 'mdi-crown' : 'mdi-medal'"
@@ -305,9 +364,19 @@ onMounted(() => {
                     </div>
 
                     <div class="d-flex align-center flex-grow-1">
-                      <VAvatar size="48" class="me-3 ranking-avatar" :class="`rank-${index + 1}`">
-                        <VImg v-if="item.avatar" :src="item.avatar"/>
-                        <span v-else class="text-h6">{{ item.name.charAt(0) }}</span>
+                      <VAvatar
+                        size="48"
+                        class="me-3 ranking-avatar"
+                        :class="`rank-${index + 1}`"
+                      >
+                        <VImg
+                          v-if="item.avatar"
+                          :src="item.avatar"
+                        />
+                        <span
+                          v-else
+                          class="text-h6"
+                        >{{ item.name.charAt(0) }}</span>
                       </VAvatar>
                       
                       <div class="flex-grow-1">
@@ -320,19 +389,26 @@ onMounted(() => {
                             class="ms-2"
                             variant="flat"
                           >
-                            {{ index === 0 ? '月度之星' : index === 1 ? '优秀' : '表扬' }}
+                            {{ index === 0 ? '月度之' : index === 1 ? '优秀' : '表扬' }}
                           </VChip>
                         </div>
                         <div class="d-flex align-center text-caption text-medium-emphasis">
                           <span>{{ item.department }}</span>
-                          <VDivider vertical class="mx-2" />
+                          <VDivider
+                            vertical
+                            class="mx-2"
+                          />
                           <span>准时率 {{ item.onTimeRate }}</span>
                         </div>
                       </div>
 
                       <div class="text-right">
-                        <div class="text-h6 text-success">{{ item.checkInDays }}天</div>
-                        <div class="text-caption text-medium-emphasis">出勤天数</div>
+                        <div class="text-h6 text-success">
+                          {{ item.checkInDays }}天
+                        </div>
+                        <div class="text-caption text-medium-emphasis">
+                          出勤天数
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -344,13 +420,20 @@ onMounted(() => {
       </VCol>
 
       <!-- 最近请假记录 -->
-      <VCol cols="12" md="4">
+      <VCol
+        cols="12"
+        md="4"
+      >
         <VCard elevation="2">
           <VCardTitle class="px-4 py-3 d-flex align-center">
-            <VIcon icon="mdi-calendar-clock" color="warning" class="me-2"/>
+            <VIcon
+              icon="mdi-calendar-clock"
+              color="warning"
+              class="me-2"
+            />
             最近请假
           </VCardTitle>
-          <VDivider/>
+          <VDivider />
           <VCardText>
             <VList>
               <VListItem
@@ -381,89 +464,92 @@ onMounted(() => {
 .dashboard {
   .stat-card {
     transition: transform 0.2s;
-    
+
     &:hover {
       transform: translateY(-4px);
     }
-    
+
     .v-card-title {
       font-size: 1.1rem;
     }
-    
+
     .text-h4 {
       font-weight: 600;
-      margin: 8px 0;
+      margin-block: 8px;
+      margin-inline: 0;
     }
-    
+
     .text-caption {
       color: rgba(var(--v-theme-on-surface), 0.6);
     }
   }
 
   .ranking-list {
-    padding: 1rem 0;
+    padding-block: 1rem;
+    padding-inline: 0;
   }
 
   .ranking-item {
     position: relative;
-    margin: 1rem 0;
     padding: 1rem;
+    border: 1px solid transparent;
     border-radius: 12px;
     background: rgba(var(--v-theme-surface-variant), 0.4);
+    margin-block: 1rem;
+    margin-inline: 0;
     transition: all 0.3s ease;
-    border: 1px solid transparent;
 
     &:hover {
-      transform: translateY(-2px);
-      background: rgba(var(--v-theme-surface-variant), 0.6);
       border-color: rgba(var(--v-theme-primary), 0.3);
+      background: rgba(var(--v-theme-surface-variant), 0.6);
       box-shadow: 0 4px 12px rgba(var(--v-theme-on-surface), 0.08);
+      transform: translateY(-2px);
     }
 
     &.rank-1 {
-      background: linear-gradient(45deg, rgba(255, 215, 0, 0.1), rgba(255, 165, 0, 0.1));
-      border: 1px solid rgba(255, 215, 0, 0.3);
+      border: 1px solid rgba(255, 215, 0, 30%);
+      background: linear-gradient(45deg, rgba(255, 215, 0, 10%), rgba(255, 165, 0, 10%));
     }
 
     &.rank-2 {
-      background: linear-gradient(45deg, rgba(192, 192, 192, 0.1), rgba(169, 169, 169, 0.1));
-      border: 1px solid rgba(192, 192, 192, 0.3);
+      border: 1px solid rgba(192, 192, 192, 30%);
+      background: linear-gradient(45deg, rgba(192, 192, 192, 10%), rgba(169, 169, 169, 10%));
     }
 
     &.rank-3 {
-      background: linear-gradient(45deg, rgba(205, 127, 50, 0.1), rgba(139, 69, 19, 0.1));
-      border: 1px solid rgba(205, 127, 50, 0.3);
+      border: 1px solid rgba(205, 127, 50, 30%);
+      background: linear-gradient(45deg, rgba(205, 127, 50, 10%), rgba(139, 69, 19, 10%));
     }
   }
 
   .rank-medal {
     position: absolute;
-    left: -12px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
+    border-radius: 50%;
+    block-size: 36px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 10%);
     color: white;
     font-weight: bold;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    inline-size: 36px;
+    inset-block-start: 50%;
+    inset-inline-start: -12px;
+    transform: translateY(-50%);
 
     &.rank-1 {
-      background: linear-gradient(45deg, #FFD700, #FFA500);
+      background: linear-gradient(45deg, #ffd700, #ffa500);
     }
 
     &.rank-2 {
-      background: linear-gradient(45deg, #C0C0C0, #A9A9A9);
+      background: linear-gradient(45deg, #c0c0c0, #a9a9a9);
     }
 
     &.rank-3 {
-      background: linear-gradient(45deg, #CD7F32, #8B4513);
+      background: linear-gradient(45deg, #cd7f32, #8b4513);
     }
 
-    &:not(.rank-1):not(.rank-2):not(.rank-3) {
+    &:not(.rank-1, .rank-2, .rank-3) {
       background: rgba(var(--v-theme-primary), 0.8);
     }
   }
@@ -472,15 +558,15 @@ onMounted(() => {
     border: 2px solid transparent;
 
     &.rank-1 {
-      border-color: #FFD700;
+      border-color: #ffd700;
     }
 
     &.rank-2 {
-      border-color: #C0C0C0;
+      border-color: #c0c0c0;
     }
 
     &.rank-3 {
-      border-color: #CD7F32;
+      border-color: #cd7f32;
     }
   }
 }

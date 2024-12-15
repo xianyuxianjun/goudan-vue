@@ -1,7 +1,10 @@
 <script setup>
-import { getAttendanceRecordByMonth } from "@/api/attendanceRecord.js";
-import { snackbar } from "@/utils/ty.js";
+import { getAttendanceRecordByMonth } from "@/api/attendanceRecord";
+import { useUserStore } from '@/stores/user';
+import { snackbar } from "@/utils/ty";
 import { onMounted, onUnmounted, ref, watch } from 'vue';
+
+const userStore = useUserStore()
 
 // 表头定义
 const recordHeaders = ref([
@@ -32,13 +35,51 @@ const statistics = ref({
 
 // 更新统计数据
 const updateStatistics = () => {
-  statistics.value = {
-    total: recordData.value.length,
-    normal: recordData.value.filter(item => item.status === '正常').length,
-    late: recordData.value.filter(item => item.status === '迟到').length,
-    early: recordData.value.filter(item => item.status === '早退').length,
-    absent: recordData.value.filter(item => item.status === '缺勤').length,
+  const now = new Date()
+  const currentMonth = now.getMonth() + 1
+  const currentYear = now.getFullYear()
+  const selectedYear = parseInt(selectedMonth.value.split('-')[0])
+  const selectedMonthNum = parseInt(selectedMonth.value.split('-')[1])
+  
+  // 获取选中月份的天数
+  const daysInMonth = new Date(selectedYear, selectedMonthNum, 0).getDate()
+  
+  // 计算工作日数量（排除周六周日）
+  let workDays = 0
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(selectedYear, selectedMonthNum - 1, day)
+    if (date.getDay() !== 0 && date.getDay() !== 6) { // 0是周日，6是周六
+      // 如果是当前月份，只统计到今天
+      if (selectedYear === currentYear && selectedMonthNum === currentMonth && day > now.getDate()) {
+        break
+      }
+      workDays++
+    }
   }
+
+  // 统计各种考勤状态
+  const normalCount = recordData.value.filter(item => item.status === '正常').length
+  const lateCount = recordData.value.filter(item => item.status === '迟到').length
+  const earlyCount = recordData.value.filter(item => item.status === '早退').length
+  const absentCount = workDays - (normalCount + lateCount + earlyCount)
+
+  statistics.value = {
+    total: workDays, // 总工作日数
+    normal: normalCount, // 正常出勤
+    late: lateCount, // 迟到
+    early: earlyCount, // 早退
+    absent: Math.max(0, absentCount), // 缺勤（工作日减去所有出勤记录）
+  }
+
+  console.log('统计数据:', {
+    workDays,
+    normalCount,
+    lateCount,
+    earlyCount,
+    absentCount,
+    selectedMonth: selectedMonth.value,
+    recordCount: recordData.value.length,
+  })
 }
 
 // 初始化 snackbar 状态
@@ -49,36 +90,95 @@ snackbar.value = {
   timeout: 3000,
 }
 
+// 生成完整的考勤记录（包括缺勤记录）
+const generateFullRecords = records => {
+  const now = new Date()
+  const selectedYear = parseInt(selectedMonth.value.split('-')[0])
+  const selectedMonthNum = parseInt(selectedMonth.value.split('-')[1])
+  const daysInMonth = new Date(selectedYear, selectedMonthNum, 0).getDate()
+  
+  // 创建日期到记录的映射
+  const recordMap = new Map(
+    records.map(record => [record.attendanceDate.split(' ')[0], record]),
+  )
+  
+  // 生成完整的记录列表
+  const fullRecords = []
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(selectedYear, selectedMonthNum - 1, day)
+    
+    // 跳过未来日期和周末
+    if (date > now || date.getDay() === 0 || date.getDay() === 6) {
+      continue
+    }
+    
+    const dateStr = date.toISOString().split('T')[0]
+    const record = recordMap.get(dateStr)
+    
+    if (record) {
+      // 使用现有记录
+      fullRecords.push({
+        ...record,
+        attendanceDate: record.attendanceDate.split(' ')[0],
+        checkIn: record.checkIn?.split(' ')[1] || '-',
+        checkOut: record.checkOut?.split(' ')[1] || '-',
+        workHours: record.workHours || '-',
+      })
+    } else {
+      // 生成缺勤记录
+      fullRecords.push({
+        attendanceDate: dateStr,
+        checkIn: '-',
+        checkOut: '-',
+        workHours: '-',
+        status: '缺勤',
+        remark: '未出勤',
+      })
+    }
+  }
+  
+  return fullRecords.sort((a, b) => a.attendanceDate.localeCompare(b.attendanceDate))
+}
+
 // 获取考勤记录
 const getAttendanceRecord = async () => {
   try {
     const data = {
-      userId: localStorage.getItem('userId'),
+      userId: userStore.userId,
       month: selectedMonth.value,
     }
     
+    console.log('获取考勤记录参数:', data)
+
     const res = await getAttendanceRecordByMonth(data)
+
+    console.log('考勤记录响应:', res)
+
     if (res.code === 1) {
-      recordData.value = res.data
+      // 处理日期格式
+      recordData.value = res.data.map(item => ({
+        ...item,
+        attendanceDate: item.attendanceDate.split(' ')[0], // 只显示日期部分
+        checkIn: item.checkIn?.split(' ')[1] || '-', // 只显示时间部分
+        checkOut: item.checkOut?.split(' ')[1] || '-',
+        workHours: item.workHours || '-',
+      }))
+      
       recordList.value = recordData.value
       updateStatistics()
     } else {
-      // 立即更新 snackbar 状态
       snackbar.value = {
         show: true,
         text: res.msg || '获取考勤记录失败',
         color: 'error',
-        timeout: 3000,
       }
     }
   } catch (error) {
     console.error('获取考勤记录失败:', error)
-    // 立即更新 snackbar 状态
     snackbar.value = {
       show: true,
       text: '获取考勤记录失败，请重试',
       color: 'error',
-      timeout: 3000,
     }
   }
 }
@@ -123,38 +223,76 @@ onUnmounted(() => {
   <div class="attendance-record">
     <!-- 统计卡片 -->
     <VRow class="mb-6">
-      <VCol cols="12" sm="6" md="4" lg="2.4">
-        <VCard class="stat-card" elevation="2">
+      <VCol
+        cols="12"
+        sm="6"
+        md="4"
+        lg="2.4"
+      >
+        <VCard
+          class="stat-card"
+          elevation="2"
+        >
           <VCardItem>
-            <VCardTitle class="text-primary">总出勤</VCardTitle>
+            <VCardTitle class="text-primary">
+              总出勤
+            </VCardTitle>
             <template #append>
-              <VIcon icon="mdi-calendar-check" size="32" color="primary" />
+              <VIcon
+                icon="ri-calendar-check-line"
+                size="32"
+                color="primary"
+              />
             </template>
           </VCardItem>
           <VCardText>
-            <div class="text-h4">{{ statistics.total }}</div>
-            <div class="text-caption">本月总天数</div>
+            <div class="text-h4">
+              {{ statistics.total }}
+            </div>
+            <div class="text-caption">
+              本月总天数
+            </div>
           </VCardText>
         </VCard>
       </VCol>
       
       <!-- 其他统计卡片 -->
-      <VCol v-for="(stat, type) in {
-        normal: { title: '正常', icon: 'mdi-check-circle', color: 'success' },
-        late: { title: '迟到', icon: 'mdi-clock-alert', color: 'warning' },
-        early: { title: '早退', icon: 'mdi-clock-out', color: 'orange' },
-        absent: { title: '缺勤', icon: 'mdi-account-off', color: 'error' }
-      }" :key="type" cols="12" sm="6" md="4" lg="2.4">
-        <VCard class="stat-card" elevation="2">
+      <VCol
+        v-for="(stat, type) in {
+          normal: { title: '正常', icon: 'ri-checkbox-circle-line', color: 'success' },
+          late: { title: '迟到', icon: 'ri-time-line', color: 'warning' },
+          early: { title: '早退', icon: 'ri-logout-circle-line', color: 'orange' },
+          absent: { title: '缺勤', icon: 'ri-close-circle-line', color: 'error' }
+        }"
+        :key="type"
+        cols="12"
+        sm="6"
+        md="4"
+        lg="2.4"
+      >
+        <VCard
+          class="stat-card"
+          elevation="2"
+        >
           <VCardItem>
-            <VCardTitle :class="`text-${stat.color}`">{{ stat.title }}</VCardTitle>
+            <VCardTitle :class="`text-${stat.color}`">
+              {{ stat.title }}
+            </VCardTitle>
             <template #append>
-              <VIcon :icon="stat.icon" size="32" :color="stat.color" />
+              <VIcon
+                :icon="stat.icon"
+                size="32"
+                :color="stat.color"
+              />
             </template>
           </VCardItem>
           <VCardText>
-            <div class="text-h4">{{ statistics[type] }}</div>
-            <div class="text-caption">{{ stat.title }}天数</div>
+            <div class="text-h4">
+              {{ statistics[type] }}
+            </div>
+            <div class="text-caption">
+              {{ stat.title }}天数
+            </div>
           </VCardText>
         </VCard>
       </VCol>
@@ -205,17 +343,17 @@ onUnmounted(() => {
           <template #item.status="{ item }">
             <VChip
               :color="item.status === '正常' ? 'success' :
-                     item.status === '迟到' ? 'warning' :
-                     item.status === '早退' ? 'orange' : 'error'"
+                item.status === '迟到' ? 'warning' :
+                item.status === '早退' ? 'orange' : 'error'"
               size="small"
               variant="elevated"
             >
               <template #prepend>
                 <VIcon
                   size="16"
-                  :icon="item.status === '正常' ? 'mdi-check-circle' :
-                         item.status === '迟到' ? 'mdi-clock-alert' :
-                         item.status === '早退' ? 'mdi-clock-out' : 'mdi-account-off'"
+                  :icon="item.status === '正常' ? 'ri-checkbox-circle-line' :
+                    item.status === '迟到' ? 'ri-time-line' :
+                    item.status === '早退' ? 'ri-logout-circle-line' : 'ri-close-circle-line'"
                 />
               </template>
               {{ item.status }}
@@ -267,12 +405,12 @@ onUnmounted(() => {
 .attendance-record {
   .stat-card {
     transition: transform 0.2s;
-    
+
     &:hover {
       transform: translateY(-4px);
     }
   }
-  
+
   .v-data-table {
     .v-data-table-header {
       th {

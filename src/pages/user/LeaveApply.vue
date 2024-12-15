@@ -1,50 +1,44 @@
 <script setup>
-import { snackbar } from "@/utils/ty.js";
-import { onMounted, ref, watch } from 'vue';
+import { getMyLeaveApplications, submitLeaveApplication } from '@/api/leaveApplication'
+import { useUserStore } from '@/stores/user'
+import { calculateLeaveDuration } from '@/utils/leaveUtils'
+import { snackbar } from "@/utils/ty"
+import { onMounted, ref, watch } from 'vue'
+
+const userStore = useUserStore()
 
 // 请假表单数据
 const leaveForm = ref({
   startDate: '',
   endDate: '',
-  leaveType: '',  // 请假类型
-  reason: '',     // 请假原因
-  attachment: null // 附件（如有）
+  leaveType: '',
+  reason: '',
+  attachment: null,
 })
+
+// 历史请假记录数据
+const recordList = ref([])
+const recordData = ref([])
+const leaveRecords = ref([])
 
 // 请假类型选项
 const leaveTypes = [
-  { title: '事假', value: 'personal' },
-  { title: '病假', value: 'sick' },
-  { title: '其他', value: 'other' },
+  { title: '事假', value: '事假' },
+  { title: '病假', value: '病假' },
+  { title: '其他', value: '其他' },
 ]
 
-// 表单验证规则
-const rules = {
-  startDate: [v => !!v || '请选择开始日期'],
-  endDate: [
-    v => !!v || '请选择结束日期',
-    v => new Date(v) >= new Date(leaveForm.value.startDate) || '结束日期不能早于开始日期'
-  ],
-  leaveType: [v => !!v || '请选择请假类型'],
-  reason: [
-    v => !!v || '请填写请假原因',
-    v => v.length >= 10 || '请假原因至少10个字'
-  ],
-}
+// 状态选项
+const statusOptions = [
+  { title: '全部', value: 'all' },
+  { title: '已批准', value: '已批准' },
+  { title: '已驳回', value: '已驳回' },
+  { title: '待审批', value: '待审批' },
+]
 
-// 历史请假记录表头
-const leaveHeaders = ref([
-  { title: '申请日期', key: 'applyDate', sortable: true },
-  { title: '开始日期', key: 'startDate', sortable: true },
-  { title: '结束日期', key: 'endDate', sortable: true },
-  { title: '请假类型', key: 'leaveType' },
-  { title: '请假原因', key: 'reason' },
-  { title: '审批状态', key: 'status', sortable: true },
-  { title: '审批意见', key: 'comment' },
-])
-
-// 历史请假记录
-const leaveRecords = ref([])
+// 筛选条件
+const filterDate = ref('')
+const filterStatus = ref('all')
 
 // 分页配置
 const options = ref({
@@ -54,91 +48,101 @@ const options = ref({
 
 // 表单对话框控制
 const showDialog = ref(false)
-const formValid = ref(true)
+const formValid = ref(null)
+const valid = ref(false)
 const loading = ref(false)
 
-// 筛选条件
-const filterDate = ref('')
-const filterStatus = ref('all')
+// 表单验证规则
+const rules = {
+  startDate: [v => !!v || '请选择开始日期'],
+  endDate: [
+    v => !!v || '请选择结束日期',
+    v => new Date(v) >= new Date(leaveForm.value.startDate) || '结束日期不能早于开始日期',
+  ],
+  leaveType: [v => !!v || '请选择请假类型'],
+  reason: [
+    v => !!v || '请填写请假原因',
+    v => v.length >= 10 || '请假原因至少10个字',
+  ],
+}
 
-// 筛选选项
-const statusOptions = [
-  { title: '全部', value: 'all' },
-  { title: '已批准', value: '已批准' },
-  { title: '已驳回', value: '已驳回' },
-  { title: '审批中', value: '审批中' },
-]
-
-// 原始数据
-const originalRecords = ref([])
+// 历史请假记录表头
+const leaveHeaders = ref([
+  { title: '申请编号', key: 'id', sortable: true },
+  { title: '申请日期', key: 'createdAt', sortable: true },
+  { title: '开始日期', key: 'startTime', sortable: true },
+  { title: '结束日期', key: 'endTime', sortable: true },
+  { title: '请假类型', key: 'leaveType' },
+  { title: '项目组', key: 'groupName' },
+  { title: '请假天数', key: 'duration' },
+  { title: '请假原因', key: 'reason' },
+  { title: '审批状态', key: 'status', sortable: true },
+  { title: '审批意见', key: 'approvalRemark' },
+])
 
 // 获取历史请假记录
 const fetchLeaveRecords = async () => {
   try {
-    // 模拟数据
-    originalRecords.value = [
-      {
-        applyDate: '2024-03-20',
-        startDate: '2024-03-21',
-        endDate: '2024-03-22',
-        leaveType: '事假',
-        reason: '参加亲属婚礼',
-        status: '已批准',
-        comment: '同意',
-      },
-      {
-        applyDate: '2024-03-15',
-        startDate: '2024-03-16',
-        endDate: '2024-03-17',
-        leaveType: '病假',
-        reason: '感冒发烧需要休息',
-        status: '审批中',
-        comment: '',
-      },
-      {
-        applyDate: '2024-03-10',
-        startDate: '2024-03-11',
-        endDate: '2024-03-12',
-        leaveType: '其他',
-        reason: '参加技术培训',
-        status: '已驳回',
-        comment: '时间安排不合适',
-      },
-    ]
+    const res = await getMyLeaveApplications({
+      userId: userStore.userId,
+    })
     
-    // 初始显示所有数据
-    leaveRecords.value = [...originalRecords.value]
+    console.log(res)
+    
+    if (res.code === 1) {
+      const formattedData = res.data.map(item => ({
+        ...item,
+        id: String(item.id).padStart(4, '0'),
+        createdAt: item.createdAt.split('T')[0],
+        startTime: item.startTime.split('T')[0],
+        endTime: item.endTime.split('T')[0],
+        duration: item.duration ? `${item.duration}天` : '-',
+        groupName: item.groupName || '-',
+        leaveType: item.leaveType || '-',
+        approvalRemark: item.approvalRemark || '-',
+      }))
+
+      recordData.value = formattedData
+      recordList.value = formattedData
+      leaveRecords.value = formattedData
+    } else {
+      snackbar.value = {
+        show: true,
+        text: res.msg || '获取记录失败',
+        color: 'error',
+      }
+    }
   } catch (error) {
     console.error('获取请假记录失败:', error)
     snackbar.value = {
       show: true,
-      text: error.message || '获取记录失败，请重试',
+      text: '获取记录失败，请重试',
       color: 'error',
-      timeout: 3000,
     }
   }
 }
 
 // 筛选数据
 const filterRecords = () => {
-  let filteredData = [...originalRecords.value]
+  let filteredData = [...recordData.value]
   
   // 日期筛选
   if (filterDate.value) {
     filteredData = filteredData.filter(record => 
-      record.startDate === filterDate.value || 
-      record.endDate === filterDate.value ||
-      (record.startDate <= filterDate.value && record.endDate >= filterDate.value)
+      record.startTime === filterDate.value || 
+      record.endTime === filterDate.value ||
+      (record.startTime <= filterDate.value && record.endTime >= filterDate.value),
     )
   }
   
   // 状态筛选
   if (filterStatus.value !== 'all') {
     filteredData = filteredData.filter(record => 
-      record.status === filterStatus.value
+      record.status === filterStatus.value,
     )
   }
   
+  recordList.value = filteredData
   leaveRecords.value = filteredData
 }
 
@@ -149,32 +153,52 @@ watch([filterDate, filterStatus], () => {
 
 // 提交请假申请
 const handleSubmit = async () => {
-  const { valid } = await formValid.value
-  if (!valid) return
-  
+  const form = await formValid.value
+  if (!form.validate()) return
+
   loading.value = true
   try {
-    // 模拟提交成功
-    setTimeout(() => {
+    // 计算请假天数
+    const duration = calculateLeaveDuration(leaveForm.value.startDate, leaveForm.value.endDate)
+    
+    const data = {
+      userId: userStore.userId,
+      name: userStore.name,
+      groupName: userStore.groupName,
+      leaveType: leaveForm.value.leaveType,
+      startTime: `${leaveForm.value.startDate} 00:00:00`, // 添加时间部分
+      endTime: `${leaveForm.value.endDate} 23:59:59`,
+      duration: duration,
+      reason: leaveForm.value.reason,
+      status: '未审批', // 设置初始状态
+    }
+    
+    console.log('提交请假数据:', data)
+
+    const res = await submitLeaveApplication(data)
+
+    console.log('提交响应:', res)
+    
+    if (res.code === 1) {
       snackbar.value = {
         show: true,
         text: '请假申请提交成功',
         color: 'success',
-        timeout: 3000,
       }
-      
       showDialog.value = false
+      resetForm() // 重置表单
       fetchLeaveRecords() // 刷新记录
-      loading.value = false
-    }, 1000)
+    } else {
+      throw new Error(res.msg || '提交失败')
+    }
   } catch (error) {
     console.error('提交请假申请失败:', error)
     snackbar.value = {
       show: true,
       text: error.message || '提交失败，请重试',
       color: 'error',
-      timeout: 3000,
     }
+  } finally {
     loading.value = false
   }
 }
@@ -188,7 +212,8 @@ const resetForm = () => {
     reason: '',
     attachment: null,
   }
-  formValid.value = true
+  formValid.value = null
+  valid.value = false
 }
 
 onMounted(() => {
@@ -200,7 +225,9 @@ onMounted(() => {
   <div class="leave-apply">
     <!-- 页面标题和新增按钮 -->
     <div class="d-flex justify-space-between align-center mb-6">
-      <h2 class="text-h4">请假申请</h2>
+      <h2 class="text-h4">
+        请假申请
+      </h2>
       <VBtn
         color="primary"
         prepend-icon="ri-add-line"
@@ -221,7 +248,10 @@ onMounted(() => {
       <!-- 添加筛选工具栏 -->
       <VCardText class="py-2">
         <VRow>
-          <VCol cols="12" md="4">
+          <VCol
+            cols="12"
+            md="4"
+          >
             <AppDateTimePicker
               v-model="filterDate"
               label="按日期筛选"
@@ -231,7 +261,10 @@ onMounted(() => {
             />
           </VCol>
           
-          <VCol cols="12" md="4">
+          <VCol
+            cols="12"
+            md="4"
+          >
             <VSelect
               v-model="filterStatus"
               :items="statusOptions"
@@ -252,13 +285,13 @@ onMounted(() => {
           :items-per-page="options.itemsPerPage"
           :page="options.page"
           hover
-          :no-data-text="'暂无数据'"
+          no-data-text="暂无数据"
         >
           <!-- 状态列自定义显示 -->
           <template #item.status="{ item }">
             <VChip
               :color="item.status === '已批准' ? 'success' :
-                     item.status === '已驳回' ? 'error' : 'warning'"
+                item.status === '已驳回' ? 'error' : 'warning'"
               size="small"
               variant="elevated"
             >
@@ -315,7 +348,10 @@ onMounted(() => {
           >
             <VRow>
               <!-- 开始日期 -->
-              <VCol cols="12" md="6">
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VTextField
                   v-model="leaveForm.startDate"
                   label="开始日期"
@@ -326,7 +362,10 @@ onMounted(() => {
               </VCol>
               
               <!-- 结束日期 -->
-              <VCol cols="12" md="6">
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VTextField
                   v-model="leaveForm.endDate"
                   label="结束日期"
@@ -387,7 +426,7 @@ onMounted(() => {
             :loading="loading"
             @click="handleSubmit"
           >
-            ��交申请
+            提交申请
           </VBtn>
         </VCardActions>
       </VCard>
@@ -425,13 +464,14 @@ onMounted(() => {
       }
     }
   }
-  
+
   // 添加筛选工具栏样式
   .filter-toolbar {
     display: flex;
-    gap: 16px;
-    padding: 8px 16px;
     background-color: rgb(var(--v-theme-surface));
+    gap: 16px;
+    padding-block: 8px;
+    padding-inline: 16px;
   }
 }
 </style> 

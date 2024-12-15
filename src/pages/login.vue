@@ -52,15 +52,30 @@ async function handleLogin() {
   try {
     const res = await login(loginForm.value)
 
-    console.log('登录响应:', res)
-
     if (res.code === 1) {
+      console.log("登录响应:", res)
+      
       // 设置token
       Cookies.set("token", res.data.tokenValue, { expires: 30 })
       
-      // 设置用户角色（根据后端返回的数据）
-      userStore.setRole(res.data.role || 'user')
+      // 构造用户信息对象
+      const userInfo = {
+        userId: res.data.userId,
+        name: res.data.name,
+        groupName: res.data.groupName,
+        role: res.data.role || 'user',
+        email: res.data.email,
+      }
       
+      // 保存用户信息到store
+      userStore.setUserInfo(userInfo)
+      
+      console.log('登录后的store状态:', userStore.$state)
+      console.log('用户ID:', userStore.userId)
+
+      // 不管是否勾选记住我，都保存用户信息到Cookie
+      Cookies.set("userInfo", JSON.stringify(userInfo), { expires: 30 })
+
       // 显示成功提示
       snackbar.value = {
         show: true,
@@ -242,7 +257,7 @@ const goToRegister = () => {
   }
 }
 
-// 添加链接样式
+// 添加���接样式
 .router-link {
   font-weight: 500;
   text-decoration: none;

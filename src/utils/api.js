@@ -4,8 +4,10 @@ import Cookies from 'js-cookie'
 // 创建一个 axios 实例
 const api = axios.create({
   baseURL: 'http://localhost:8080', // 你的API基础URL
-  timeout: 1000, // 请求超时时间
-  headers: { 'X-Custom-Header': 'foobar' }, // 自定义请求头
+  timeout: 5000, // 增加超时时间到5秒
+  headers: {
+    'Content-Type': 'application/json',
+  },
 })
 
 // 请求拦截器

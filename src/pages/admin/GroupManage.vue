@@ -1,176 +1,280 @@
 <script setup>
-import { addProjectGroup, deleteProjectGroup, getProjectGroupList, updateProjectGroup } from "@/api/projectGroup.js";
-import { options, snackbar } from "@/utils/ty.js";
-import AddDialog from "@/views/AddDialog.vue";
-import DetectDialog from "@/views/DetectDialog.vue";
-import EditDiaLog from "@/views/EditDiaLog.vue";
-import TableHead from "@/views/TableHead.vue";
+import { addProjectGroup, deleteProjectGroup, getProjectGroupList, updateProjectGroup } from "@/api/projectGroup"
+import { options, snackbar } from "@/utils/ty"
+import AddDialog from "@/views/AddDialog.vue"
+import DetectDialog from "@/views/DetectDialog.vue"
+import EditDiaLog from "@/views/EditDiaLog.vue"
+import TableHead from "@/views/TableHead.vue"
+import { onMounted, ref } from 'vue'
 
-//表头
+// 表头
 const groupTableHeaders = ref([
-  {title: '项目组编号', key: 'id'},
-  {title: '项目组名称', key: 'name'},
-  {title: '项目组介绍', key: 'description'},
-  {title: '操作', key: 'operation'},
+  { title: '项目组编号', key: 'id', sortable: true },
+  { title: '项目组名称', key: 'name', sortable: true },
+  { title: '项目组介绍', key: 'description' },
+  { title: '创建时间', key: 'createdAt', sortable: true },
+  { title: '操作', key: 'actions' },
 ])
-//搜索框的值
-const searchValue = ref('')
 
-//搜索
-function search(value) {
+// 搜索和筛选
+const searchValue = ref('')
+const groupData = ref([])
+const groupList = ref([])
+
+// 搜索功能
+const search = value => {
   searchValue.value = value
-  groupList.value = groupData.value.filter(item => item.name === value || item.name.includes(value))
+  filterData()
 }
 
-//后端获取的项目组数据
-const groupData = ref([])
-//展示的项目组数据
-const groupList = ref([])
-//编辑的项目组
+// 筛选数据
+const filterData = () => {
+  if (searchValue.value) {
+    groupList.value = groupData.value.filter(item => 
+      item.name.includes(searchValue.value),
+    )
+  } else {
+    groupList.value = groupData.value
+  }
+}
+
+// 获取项目组列表
+const getGroups = async () => {
+  try {
+    const res = await getProjectGroupList()
+    if (res.code === 1) {
+      groupData.value = res.data.map(item => ({
+        ...item,
+        createdAt: item.createdAt?.split('T')[0] || '-',
+        description: item.description || '-',
+      }))
+      groupList.value = groupData.value
+    }
+  } catch (error) {
+    console.error('获取项目组列表失败:', error)
+    snackbar.value = {
+      show: true,
+      text: '获取项目组列表失败',
+      color: 'error',
+    }
+  }
+}
+
+// 新增项目组
+const newGroup = ref({
+  name: '',
+  description: '',
+})
+
+// 添加项目组
+const handleAdd = async () => {
+  if (!newGroup.value.name?.trim()) {
+    snackbar.value = {
+      show: true,
+      text: '请输入项目组名称',
+      color: 'warning',
+    }
+    
+    return
+  }
+
+  try {
+    const res = await addProjectGroup({
+      name: newGroup.value.name.trim(),
+      description: newGroup.value.description?.trim(),
+    })
+
+    if (res.code === 1) {
+      snackbar.value = {
+        show: true,
+        text: '添加成功',
+        color: 'success',
+      }
+      getGroups()
+
+      // 重置表单
+      newGroup.value = {
+        name: '',
+        description: '',
+      }
+    }
+  } catch (error) {
+    console.error('添加项目组失败:', error)
+    snackbar.value = {
+      show: true,
+      text: '添加失败',
+      color: 'error',
+    }
+  }
+}
+
+// 编辑项目组
 const editGroup = ref({
   id: '',
   name: '',
   description: '',
 })
 
-//打开编辑对话框
-function editItem(item) {
+// 打开编辑对话框
+const openEdit = item => {
   editGroup.value = { ...item }
 }
 
-//新增的项目组
-const newGroup = ref({})
+// 提交编辑
+const handleEdit = async () => {
+  if (!editGroup.value.name?.trim()) {
+    snackbar.value = {
+      show: true,
+      text: '请输入项目组名称',
+      color: 'warning',
+    }
+    
+    return
+  }
 
-//添加项目组
-function tianjia() {
-  addProjectGroup(newGroup.value).then(res => {
-    isSuccess(res)
-    getGroupList()
-  })
+  try {
+    const res = await updateProjectGroup({
+      id: editGroup.value.id,
+      name: editGroup.value.name.trim(),
+      description: editGroup.value.description?.trim(),
+    })
+
+    if (res.code === 1) {
+      snackbar.value = {
+        show: true,
+        text: '修改成功',
+        color: 'success',
+      }
+      getGroups()
+    }
+  } catch (error) {
+    console.error('修改项目组失败:', error)
+    snackbar.value = {
+      show: true,
+      text: '修改失败',
+      color: 'error',
+    }
+  }
 }
 
-//获取后端数据
-function getGroupList() {
-  getProjectGroupList().then(res => {
-    groupData.value = res.data
-    groupList.value = groupData.value
-  })
+// 删除项目组
+const handleDelete = async item => {
+  try {
+    const res = await deleteProjectGroup(item.id)
+    if (res.code === 1) {
+      snackbar.value = {
+        show: true,
+        text: '删除成功',
+        color: 'success',
+      }
+      getGroups()
+    }
+  } catch (error) {
+    console.error('删除项目组失败:', error)
+    snackbar.value = {
+      show: true,
+      text: '删除失败',
+      color: 'error',
+    }
+  }
 }
-
-//删除项目组
-function shanchu(item) {
-  deleteProjectGroup(item.id).then(res => {
-    isSuccess(res)
-    getGroupList()
-  })
-}
-
-//修改项目组
-function edit() {
-  updateProjectGroup(editGroup.value).then(res => {
-    isSuccess(res)
-    getGroupList()
-  })
-}
-
 
 onMounted(() => {
-  getGroupList()
+  getGroups()
 })
-
 </script>
 
 <template>
   <VCard>
     <TableHead @search="search">
       <template #one>
-        <AddDialog @add="tianjia">
+        <AddDialog @add="handleAdd">
           <template #content>
-            <VCol
-              cols="12"
-              sm="6"
-              md="12"
-            >
+            <VCol cols="12">
               <VTextField
-                label="项目组名称"
                 v-model="newGroup.name"
+                label="项目组名称"
+                :rules="[v => !!v || '请输入项目组名称']"
+                required
               />
             </VCol>
-            <VCol
-              cols="12"
-
-            >
-              <VTextarea label="项目介绍" v-model="newGroup.description"/>
+            <VCol cols="12">
+              <VTextarea
+                v-model="newGroup.description"
+                label="项目组介绍"
+                rows="3"
+              />
             </VCol>
           </template>
         </AddDialog>
       </template>
     </TableHead>
-    <VDataTable :headers="groupTableHeaders"
-                :items="groupList"
-                :items-per-page="options.itemsPerPage"
-                :page="options.page"
-                :options="options">
-      <template #item.operation="{ item }">
+
+    <VDataTable
+      :headers="groupTableHeaders"
+      :items="groupList"
+      :items-per-page="options.itemsPerPage"
+      :page="options.page"
+      hover
+    >
+      <template #item.actions="{ item }">
         <div class="d-flex align-center">
-          <div class="me-2">
-            <EditDiaLog 
-              @edit="edit" 
-              @update="editItem(item)"
+          <EditDiaLog
+            @edit="handleEdit"
+            @update="openEdit(item)"
+          >
+            <VTooltip
+              activator="parent"
+              location="top"
             >
-              <VTooltip activator="parent" location="top">编辑信息</VTooltip>
-              <template #content>
-                <VCol cols="12">
-                  <VTextField
-                    label="项目名称"
-                    v-model="editGroup.name"
-                  />
-                </VCol>
-                <VCol cols="12">
-                  <VTextarea 
-                    label="项目介绍" 
-                    v-model="editGroup.description"
-                  />
-                </VCol>
-              </template>
-            </EditDiaLog>
-          </div>
-          <div class="me-2">
-            <DetectDialog @delete="shanchu(item)">
-              <VTooltip activator="parent" location="top">删除项目组</VTooltip>
-            </DetectDialog>
-          </div>
+              编辑信息
+            </VTooltip>
+            <template #content>
+              <VCol cols="12">
+                <VTextField
+                  v-model="editGroup.name"
+                  label="项目组名称"
+                  :rules="[v => !!v || '请输入项目组名称']"
+                  required
+                />
+              </VCol>
+              <VCol cols="12">
+                <VTextarea
+                  v-model="editGroup.description"
+                  label="项目组介绍"
+                  rows="3"
+                />
+              </VCol>
+            </template>
+          </EditDiaLog>
+
+          <DetectDialog @delete="handleDelete(item)">
+            <VTooltip
+              activator="parent"
+              location="top"
+            >
+              删除项目组
+            </VTooltip>
+          </DetectDialog>
         </div>
       </template>
+
       <template #bottom>
-        <VPagination
-          v-model="options.page"
-          :total-visible="$vuetify.display.smAndDown ? 2 : 3"
-          :length="Math.ceil(groupList.length / options.itemsPerPage)"
-        />
+        <VDivider />
+        <div class="d-flex align-center justify-space-between pa-4">
+          <div class="text-caption">
+            共 {{ groupList.length }} 条记录
+          </div>
+          <VPagination
+            v-model="options.page"
+            :total-visible="$vuetify.display.smAndDown ? 2 : 3"
+            :length="Math.ceil(groupList.length / options.itemsPerPage)"
+            rounded="circle"
+          />
+        </div>
       </template>
     </VDataTable>
   </VCard>
-
-  <!-- 添加提示框组件 -->
-  <VSnackbar
-    v-model="snackbar.show"
-    :color="snackbar.color"
-    :timeout="snackbar.timeout"
-    location="top"
-  >
-    {{ snackbar.text }}
-    
-    <template #actions>
-      <VBtn
-        color="white"
-        variant="text"
-        @click="snackbar.show = false"
-      >
-        关闭
-      </VBtn>
-    </template>
-  </VSnackbar>
 </template>
 
 <style scoped lang="scss">

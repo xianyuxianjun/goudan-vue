@@ -49,13 +49,8 @@ watch([
 const filteredNavItems = computed(() => {
   const userRole = userStore.role
 
-  console.log('Current user role:', userRole)
   
-  const filtered = navItems.filter(item => item.role.includes(userRole))
-
-  console.log('Filtered menu items:', filtered)
-  
-  return filtered
+  return navItems.filter(item => item.role.includes(userRole))
 })
 </script>
 

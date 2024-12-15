@@ -1,27 +1,34 @@
+import api from "@/utils/api"
+
+// 获取项目组列表
 export function getProjectGroupList() {
-    return api.post("/projectGroup/list")
+  return api.post("/projectGroup/list")
 }
 
-export function getProjectGroup(projectGroupId) {
-    return api.post("/projectGroup/get", {
-        projectGroupId:projectGroupId
-    })
+// 添加项目组
+export function addProjectGroup(data) {
+  return api.post("/projectGroup/add", {
+    name: data.name,
+    description: data.description || '',
+  })
 }
 
-export function addProjectGroup(projectGroup) {
-    return api.post("/projectGroup/add", projectGroup)
+// 更新项目组
+export function updateProjectGroup(data) {
+  return api.post("/projectGroup/update", {
+    id: data.id,
+    name: data.name,
+    description: data.description || '',
+  })
 }
 
-export function updateProjectGroup(projectGroup) {
-    return api.post("/projectGroup/update", projectGroup)
-}
-
-export function deleteProjectGroup(projectGroupId) {
-    return api.post("/projectGroup/detect", {
-        id:projectGroupId
-    })
+// 删除项目组
+export function deleteProjectGroup(id) {
+  return api.post("/projectGroup/delete", {
+    id,
+  })
 }
 
 export function getProjectKVList() {
-    return api.post("/projectGroup/ky")
+  return api.post("/projectGroup/ky")
 }

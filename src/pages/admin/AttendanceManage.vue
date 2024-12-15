@@ -1,8 +1,8 @@
 <script setup>
-import { getAttendanceListByDate } from "@/api/attendanceRecord.js";
-import { snackbar } from "@/utils/ty.js";
+import { getAttendanceList } from '@/api/attendanceRecord';
+import { snackbar } from '@/utils/ty';
 import TableHead from "@/views/TableHead.vue";
-import { onMounted, ref, watch } from "vue";
+import { onMounted, ref, watch } from 'vue';
 
 // 表头定义
 const attendanceHeader = ref([
@@ -35,7 +35,8 @@ const searchValue = ref('')
 const attendanceData = ref([])
 const date = new Date()
 const selectedDate = ref(new Date().toISOString().substr(0, 10))
-console.log(selectedDate.value);
+
+console.log(selectedDate.value)
 
 const showDatePicker = ref(false)
 const selectedStatus = ref('all')
@@ -51,12 +52,17 @@ const statistics = ref({
 
 // 更新统计数据
 const updateStatistics = () => {
+  // 过滤当天的记录
+  const todayRecords = attendanceData.value.filter(item => 
+    item.attendanceDate === selectedDate.value,
+  )
+
   statistics.value = {
-    total: attendanceData.value.length,
-    normal: attendanceData.value.filter(item => item.status === '正常').length,
-    late: attendanceData.value.filter(item => item.status === '迟到').length,
-    early: attendanceData.value.filter(item => item.status === '早退').length,
-    absent: attendanceData.value.filter(item => item.status === '缺勤').length,
+    total: todayRecords.length,
+    normal: todayRecords.filter(item => item.status === '正常').length,
+    late: todayRecords.filter(item => item.status === '迟到').length,
+    early: todayRecords.filter(item => item.status === '早退').length,
+    absent: todayRecords.filter(item => item.status === '缺勤').length,
   }
 }
 
@@ -74,7 +80,7 @@ const filterData = () => {
   if (searchValue.value) {
     filteredData = filteredData.filter(item =>
       item.name.includes(searchValue.value) ||
-      item.userId.includes(searchValue.value)
+      item.userId.includes(searchValue.value),
     )
   }
 
@@ -86,7 +92,7 @@ const filterData = () => {
   attendanceList.value = filteredData
 }
 
-// 监听筛选条件变化
+// 监听筛选条件��化
 watch(selectedDate, () => {
   getAttendanceData()  // 只有日期变化时重新获取数据
 })
@@ -102,38 +108,54 @@ const options = ref({
 })
 
 // 获取考勤数据
-const getAttendanceData = () => {
-  const data = {
-    attendanceDate: selectedDate.value
-  }
+const getAttendanceData = async () => {
+  try {
+    console.log('开始获取考勤数据，日期:', selectedDate.value)
 
-  getAttendanceListByDate(data).then(res => {
+    const res = await getAttendanceList({
+      date: selectedDate.value,
+    })
+
+    console.log('考勤数据响应:', res)
+
     if (res.code === 1) {
-      attendanceData.value = res.data
-      attendanceList.value = attendanceData.value  // 先设置完整数据
-      filterData()  // 然后应用当前的筛选条件
-      updateStatistics()
-    } else {
-      snackbar.value = {
-        show: true,
-        text: res.msg || '获取考勤数据失败',
-        color: 'error',
-        timeout: 3000,
+      // 格式化数据
+      attendanceData.value = res.data.map(item => ({
+        ...item,
+        attendanceDate: item.attendanceDate.split(' ')[0], // 只显示日期部分
+        checkIn: item.checkIn?.split(' ')[1] || '-', // 只显示时间部分
+        checkOut: item.checkOut?.split(' ')[1] || '-',
+        workHours: item.workHours || '-',
+        remark: item.remark || '-',
+      }))
+      attendanceList.value = attendanceData.value
+      
+      // 更新统计数据
+      statistics.value = {
+        total: attendanceData.value.length,
+        normal: attendanceData.value.filter(item => item.status === '正常').length,
+        late: attendanceData.value.filter(item => item.status === '迟到').length,
+        early: attendanceData.value.filter(item => item.status === '早退').length,
+        absent: attendanceData.value.filter(item => item.status === '缺勤').length,
       }
+      
+      console.log('统计数据:', statistics.value)
+    } else {
+      throw new Error(res.msg || '获取数据失败')
     }
-  }).catch(err => {
-    console.error('获取考勤数据失败:', err)
+  } catch (error) {
+    console.error('获取考勤数据失败:', error)
     snackbar.value = {
       show: true,
-      text: '获取考勤数据失败，请稍后重试',
+      text: error.message || '获取考勤数据失败，请重试',
       color: 'error',
       timeout: 3000,
     }
-  })
+  }
 }
 
 // 处理日期选择
-const handleDateSelect = (newDate) => {
+const handleDateSelect = newDate => {
   if (newDate) {
     selectedDate.value = new Date(newDate).toISOString().substr(0, 10)
     getAttendanceData()
@@ -149,77 +171,167 @@ onMounted(() => {
   <div class="attendance-manage">
     <!-- 统计卡片 -->
     <VRow class="mb-6">
-      <VCol cols="12" sm="6" md="4" lg="2.4">
-        <VCard class="stat-card" elevation="2">
+      <VCol
+        cols="12"
+        sm="6"
+        md="4"
+        lg="2.4"
+      >
+        <VCard
+          class="stat-card"
+          elevation="2"
+        >
           <VCardItem>
-            <VCardTitle class="text-primary">总出勤</VCardTitle>
+            <VCardTitle class="text-primary">
+              总出勤
+            </VCardTitle>
             <template #append>
-              <VIcon icon="mdi-account-group" size="32" color="primary" />
+              <VIcon
+                icon="mdi-account-group"
+                size="32"
+                color="primary"
+              />
             </template>
           </VCardItem>
           <VCardText>
-            <div class="text-h4">{{ statistics.total }}</div>
-            <div class="text-caption">今日总人数</div>
+            <div class="text-h4">
+              {{ statistics.total }}
+            </div>
+            <div class="text-caption">
+              今日总人数
+            </div>
           </VCardText>
         </VCard>
       </VCol>
 
-      <VCol cols="12" sm="6" md="4" lg="2.4">
-        <VCard class="stat-card" elevation="2">
+      <VCol
+        cols="12"
+        sm="6"
+        md="4"
+        lg="2.4"
+      >
+        <VCard
+          class="stat-card"
+          elevation="2"
+        >
           <VCardItem>
-            <VCardTitle class="text-success">正常</VCardTitle>
+            <VCardTitle class="text-success">
+              正常
+            </VCardTitle>
             <template #append>
-              <VIcon icon="mdi-check-circle" size="32" color="success" />
+              <VIcon
+                icon="mdi-check-circle"
+                size="32"
+                color="success"
+              />
             </template>
           </VCardItem>
           <VCardText>
-            <div class="text-h4">{{ statistics.normal }}</div>
-            <div class="text-caption">正常出勤人数</div>
+            <div class="text-h4">
+              {{ statistics.normal }}
+            </div>
+            <div class="text-caption">
+              正常出勤人数
+            </div>
           </VCardText>
         </VCard>
       </VCol>
 
-      <VCol cols="12" sm="6" md="4" lg="2.4">
-        <VCard class="stat-card" elevation="2">
+      <VCol
+        cols="12"
+        sm="6"
+        md="4"
+        lg="2.4"
+      >
+        <VCard
+          class="stat-card"
+          elevation="2"
+        >
           <VCardItem>
-            <VCardTitle class="text-warning">迟到</VCardTitle>
+            <VCardTitle class="text-warning">
+              迟到
+            </VCardTitle>
             <template #append>
-              <VIcon icon="mdi-clock-alert" size="32" color="warning" />
+              <VIcon
+                icon="mdi-clock-alert"
+                size="32"
+                color="warning"
+              />
             </template>
           </VCardItem>
           <VCardText>
-            <div class="text-h4">{{ statistics.late }}</div>
-            <div class="text-caption">迟到人数</div>
+            <div class="text-h4">
+              {{ statistics.late }}
+            </div>
+            <div class="text-caption">
+              迟到人数
+            </div>
           </VCardText>
         </VCard>
       </VCol>
 
-      <VCol cols="12" sm="6" md="4" lg="2.4">
-        <VCard class="stat-card" elevation="2">
+      <VCol
+        cols="12"
+        sm="6"
+        md="4"
+        lg="2.4"
+      >
+        <VCard
+          class="stat-card"
+          elevation="2"
+        >
           <VCardItem>
-            <VCardTitle class="text-orange">早退</VCardTitle>
+            <VCardTitle class="text-orange">
+              早退
+            </VCardTitle>
             <template #append>
-              <VIcon icon="mdi-clock-out" size="32" color="orange" />
+              <VIcon
+                icon="mdi-clock-out"
+                size="32"
+                color="orange"
+              />
             </template>
           </VCardItem>
           <VCardText>
-            <div class="text-h4">{{ statistics.early }}</div>
-            <div class="text-caption">早退人数</div>
+            <div class="text-h4">
+              {{ statistics.early }}
+            </div>
+            <div class="text-caption">
+              早退人数
+            </div>
           </VCardText>
         </VCard>
       </VCol>
 
-      <VCol cols="12" sm="6" md="4" lg="2.4">
-        <VCard class="stat-card" elevation="2">
+      <VCol
+        cols="12"
+        sm="6"
+        md="4"
+        lg="2.4"
+      >
+        <VCard
+          class="stat-card"
+          elevation="2"
+        >
           <VCardItem>
-            <VCardTitle class="text-error">缺勤</VCardTitle>
+            <VCardTitle class="text-error">
+              缺勤
+            </VCardTitle>
             <template #append>
-              <VIcon icon="mdi-account-off" size="32" color="error" />
+              <VIcon
+                icon="mdi-account-off"
+                size="32"
+                color="error"
+              />
             </template>
           </VCardItem>
           <VCardText>
-            <div class="text-h4">{{ statistics.absent }}</div>
-            <div class="text-caption">缺勤人数</div>
+            <div class="text-h4">
+              {{ statistics.absent }}
+            </div>
+            <div class="text-caption">
+              缺勤人数
+            </div>
           </VCardText>
         </VCard>
       </VCol>
@@ -230,50 +342,82 @@ onMounted(() => {
       <TableHead @search="search">
         <template #one>
           <!-- 状态选择 -->
-          <VSelect v-model="selectedStatus" :items="[
-            { title: '全部', value: 'all' },
-            { title: '正常', value: '正常' },
-            { title: '迟到', value: '迟到' },
-            { title: '早退', value: '早退' },
-            { title: '缺勤', value: '缺勤' }
-          ]" label="考勤状态" density="compact" hide-details variant="outlined" class="status-select" />
+          <VSelect
+            v-model="selectedStatus"
+            :items="[
+              { title: '全部', value: 'all' },
+              { title: '正常', value: '正常' },
+              { title: '迟到', value: '迟到' },
+              { title: '早退', value: '早退' },
+              { title: '缺勤', value: '缺勤' }
+            ]"
+            label="考勤状态"
+            density="compact"
+            hide-details
+            variant="outlined"
+            class="status-select"
+          />
         </template>
         <template #two>
           <AppDateTimePicker
-          v-model="selectedDate"
+            v-model="selectedDate"
             type="date"
             label="选择日期"
             placeholder="选择日期"
             variant="outlined"
             density="compact"
             hide-details
-  />
+            @update:model-value="getAttendanceData"
+          />
         </template>
       </TableHead>
 
       <VDivider />
 
       <VCardText>
-        <VDataTable :headers="attendanceHeader" :items="attendanceList" :items-per-page="options.itemsPerPage"
-          :page="options.page" :options="options" hover class="elevation-1">
+        <VDataTable
+          :headers="attendanceHeader"
+          :items="attendanceList"
+          :items-per-page="options.itemsPerPage"
+          :page="options.page"
+          :options="options"
+          hover
+          class="elevation-1"
+        >
           <template #item.name="{ item }">
             <div class="d-flex align-center">
-              <VAvatar size="32" class="me-2">
-                <VImg v-if="item.avatar" :src="item.avatar" />
-                <span v-else class="text-caption">{{ item.name.charAt(0) }}</span>
+              <VAvatar
+                size="32"
+                class="me-2"
+              >
+                <VImg
+                  v-if="item.avatar"
+                  :src="item.avatar"
+                />
+                <span
+                  v-else
+                  class="text-caption"
+                >{{ item.name.charAt(0) }}</span>
               </VAvatar>
               {{ item.name }}
             </div>
           </template>
 
           <template #item.status="{ item }">
-            <VChip :color="item.status === '正常' ? 'success' :
-              item.status === '迟到' ? 'warning' :
-                item.status === '早退' ? 'orange' : 'error'" size="small" variant="elevated">
+            <VChip
+              :color="item.status === '正常' ? 'success' :
+                item.status === '迟到' ? 'warning' :
+                item.status === '早退' ? 'orange' : 'error'"
+              size="small"
+              variant="elevated"
+            >
               <template #prepend>
-                <VIcon size="16" :icon="item.status === '正常' ? 'mdi-check-circle' :
-                  item.status === '迟到' ? 'mdi-clock-alert' :
-                    item.status === '早退' ? 'mdi-clock-out' : 'mdi-account-off'" />
+                <VIcon
+                  size="16"
+                  :icon="item.status === '正常' ? 'mdi-check-circle' :
+                    item.status === '迟到' ? 'mdi-clock-alert' :
+                    item.status === '早退' ? 'mdi-clock-out' : 'mdi-account-off'"
+                />
               </template>
               {{ item.status }}
             </VChip>
@@ -285,8 +429,12 @@ onMounted(() => {
               <div class="text-caption">
                 共 {{ attendanceList.length }} 条记录
               </div>
-              <VPagination v-model="options.page" :total-visible="$vuetify.display.smAndDown ? 2 : 3"
-                :length="Math.ceil(attendanceList.length / options.itemsPerPage)" rounded="circle" />
+              <VPagination
+                v-model="options.page"
+                :total-visible="$vuetify.display.smAndDown ? 2 : 3"
+                :length="Math.ceil(attendanceList.length / options.itemsPerPage)"
+                rounded="circle"
+              />
             </div>
           </template>
         </VDataTable>
@@ -294,11 +442,20 @@ onMounted(() => {
     </VCard>
 
     <!-- 添加提示框组件 -->
-    <VSnackbar v-model="snackbar.show" :color="snackbar.color" :timeout="snackbar.timeout" location="top">
+    <VSnackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      :timeout="snackbar.timeout"
+      location="top"
+    >
       {{ snackbar.text }}
 
       <template #actions>
-        <VBtn color="white" variant="text" @click="snackbar.show = false">
+        <VBtn
+          color="white"
+          variant="text"
+          @click="snackbar.show = false"
+        >
           关闭
         </VBtn>
       </template>
@@ -321,7 +478,8 @@ onMounted(() => {
 
     .text-h4 {
       font-weight: 600;
-      margin: 8px 0;
+      margin-block: 8px;
+      margin-inline: 0;
     }
 
     .text-caption {
@@ -344,23 +502,22 @@ onMounted(() => {
     gap: 16px;
 
     .status-select {
-      width: 180px;
+      inline-size: 180px;
     }
 
     .date-field {
-      width: 200px;
+      inline-size: 200px;
     }
   }
 
   :deep(.v-menu > .v-overlay__content) {
     border-radius: 8px;
-    box-shadow: 0 4px 25px 0 rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 25px 0 rgba(0, 0, 0, 10%);
   }
 
   :deep(.v-field__input) {
-    min-height: 40px;
-    padding-top: 0;
-    padding-bottom: 0;
+    min-block-size: 40px;
+    padding-block: 0;
   }
 }
 </style>

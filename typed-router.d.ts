@@ -24,6 +24,7 @@ declare module 'vue-router/auto-routes' {
     'admin-duty-manage': RouteRecordInfo<'admin-duty-manage', '/admin/DutyManage', Record<never, never>, Record<never, never>>,
     'admin-group-manage': RouteRecordInfo<'admin-group-manage', '/admin/GroupManage', Record<never, never>, Record<never, never>>,
     'admin-leave-manage': RouteRecordInfo<'admin-leave-manage', '/admin/LeaveManage', Record<never, never>, Record<never, never>>,
+    'admin-project-manage': RouteRecordInfo<'admin-project-manage', '/admin/ProjectManage', Record<never, never>, Record<never, never>>,
     'admin-user-manage': RouteRecordInfo<'admin-user-manage', '/admin/UserManage', Record<never, never>, Record<never, never>>,
     'admin-weekly-report': RouteRecordInfo<'admin-weekly-report', '/admin/WeeklyReport', Record<never, never>, Record<never, never>>,
     'login': RouteRecordInfo<'login', '/login', Record<never, never>, Record<never, never>>,
